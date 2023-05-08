@@ -2,13 +2,13 @@ create table if not exists customer (
     id varchar(100) primary key,
     name varchar(100),
     phone_number varchar(15) unique,
-    is_delete bool default false
+    is_deleted bool default false
 );
 
 create table if not exists uom (
     id varchar(100) primary key,
     name varchar(30) not null,
-    is_delete bool default false
+    is_deleted bool default false
 );
 
 create table if not exists product (
@@ -16,14 +16,14 @@ create table if not exists product (
     name varchar(50) not null,
     price bigint,
     uom_id varchar(100),
-    is_delete bool default false,
+    is_deleted bool default false,
     foreign key(uom_id) references uom(id)
 );
 
 create table if not exists employee (
     id varchar(100) primary key,
     name varchar(100),
-    is_delete bool default false
+    is_deleted bool default false
 );
 
 create table if not exists bill (
