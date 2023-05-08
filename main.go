@@ -85,7 +85,11 @@ func main() {
 	insertEmployee(db, &newEmployee)
 
 	// READ
-	fmt.Println(getEmployee(db, newEmployee.Id))
+	retrievedEmployee, err := getEmployee(db, newEmployee.Id)
+	if err != nil {
+        log.Fatal(err)
+    }
+	fmt.Println(retrievedEmployee)
 	fmt.Println(getAllEmployees(db))
 
 	// UPDATE
@@ -94,6 +98,26 @@ func main() {
 
 	// DELETE
 	deleteEmployee(db, newEmployee.Id)
+
+	// --- Customer ---
+	// CREATE
+    newCustomer := Customer{Name: "John Doe", PhoneNumber: "+1 123-456-7890"}
+    insertCustomer(db, &newCustomer)
+
+    // READ
+    retrievedCustomer, err := getCustomer(db, newCustomer.Id)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println(retrievedCustomer)
+	fmt.Println(getAllCustomers(db))
+
+    // UPDATE
+    retrievedCustomer.Name = "Jane Doe"
+    updateCustomer(db, retrievedCustomer)
+
+    // DELETE
+    deleteCustomer(db, retrievedCustomer.Id)
 }
 
 //=================== Create, Read, Update, Delete (CRUD) ========================
@@ -259,6 +283,90 @@ func deleteEmployee(db *sql.DB, id string) error {
 
 	if err == nil {
 		log.Printf("Employee with ID %s deleted successfully", id)
+	} else {
+		log.Println(err)
+	}
+
+	return err
+}
+
+// ----------------- Customer -------------------------
+func insertCustomer(db *sql.DB, newCustomer *Customer) error {
+	newId := uuid.New().String()
+	stmt := `INSERT INTO public.customer (id,name,phone_number) VALUES ($1,$2,$3)`
+	_, err := db.Exec(stmt, newId, newCustomer.Name, newCustomer.PhoneNumber)
+
+	if err == nil {
+		log.Printf("Customer %s added successfully", newCustomer.Name)
+	} else {
+		log.Println(err)
+	}
+
+	return err
+}
+
+func getCustomer(db *sql.DB, id string) (*Customer, error) {
+	stmt := `SELECT name, phone_number FROM public.customer WHERE id = $1`
+	row := db.QueryRow(stmt, id)
+
+	var customer Customer
+	err := row.Scan(&customer.Name, &customer.PhoneNumber)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("Customer with ID %s not found", id)
+	} else if err != nil {
+		return nil, err
+	}
+
+	customer.Id = id
+
+	return &customer, nil
+}
+
+func getAllCustomers(db *sql.DB) ([]Customer, error) {
+	stmt := `SELECT id, name, phone_number FROM public.customer WHERE is_deleted = false`
+	rows, err := db.Query(stmt)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	customers := []Customer{}
+	for rows.Next() {
+		var customer Customer
+		err := rows.Scan(&customer.Id, &customer.Name, &customer.PhoneNumber)
+		if err != nil {
+			return nil, err
+		}
+		customers = append(customers, customer)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return customers, nil
+}
+
+func updateCustomer(db *sql.DB, updatedCustomer *Customer) error {
+	stmt := `UPDATE public.customer SET name = $2, phone_number = $3 WHERE id = $1`
+	_, err := db.Exec(stmt, updatedCustomer.Id, updatedCustomer.Name, updatedCustomer.PhoneNumber)
+
+	if err == nil {
+		log.Printf("Customer with ID %s updated successfully", updatedCustomer.Id)
+	} else {
+		log.Println(err)
+	}
+
+	return err
+}
+
+func deleteCustomer(db *sql.DB, id string) error {
+	stmt := `UPDATE customer SET is_deleted = true where id=$1`
+	_, err := db.Exec(stmt, id)
+
+	if err == nil {
+		log.Printf("Customer with ID %s deleted successfully", id)
 	} else {
 		log.Println(err)
 	}
