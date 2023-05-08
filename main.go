@@ -22,6 +22,40 @@ const (
 	sslMode 	= "disable"
 )
 
+type Customer struct {
+	Id          string
+	Name        string
+	PhoneNumber string
+}
+
+type Employee struct {
+	Id   string
+	Name string
+}
+
+type Uom struct {
+	Id   string
+	Name string
+}
+
+type Product struct {
+	Id    string
+	Name  string
+	Price int
+	Uom   Uom
+}
+
+type BillRequest struct {
+	EmployeeId string
+	CustomerId string
+	Items      []BillItemRequest
+}
+
+type BillItemRequest struct {
+	ProductId string
+	Qty       int
+}
+
 func main() {
 	connectDb()
 }
