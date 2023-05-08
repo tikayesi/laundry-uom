@@ -9,6 +9,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 
 	_ "github.com/lib/pq"
 )
@@ -57,8 +58,42 @@ type BillItemRequest struct {
 }
 
 func main() {
-	connectDb()
+	db := connectDb()
+
+	// test CRUD
+	newOum := Uom {Name: "Test Unit"}
+	insertUom(db, &newOum)
 }
+
+//=================== Create, Read, Update, Delete (CRUD) ========================
+
+// ----------------- UOM Master -------------------------
+func insertUom(db *sql.DB, newUom *Uom) {
+	stmt := `INSERT INTO uom (id, name) VALUES ($1,$2)`
+	_, err := db.Exec(stmt, newUom.Id, newUom.Name)
+	checkErr(err)
+	log.Println("UOM added successfully")
+}
+
+// func deleteUom(db *sql.DB, id string) error {
+// 	stmt := `UPDATE uom SET is_delete = true WHERE id=$1`
+// 	_, err := db.Exec(stmt, id)
+// 	return err
+// }
+
+// func findUomById(db *sql.DB, id string) (Uom, error) {
+// 	stmt := `SELECT id, name FROM uom WHERE id=$1`
+// 	row := db.QueryRow(stmt, id)
+// 	var uom Uom
+// 	switch err := row.Scan(&uom.Id, &uom.Name); err {
+// 	case sql.ErrNoRows:
+// 		return Uom{}, err
+// 	case nil:
+// 		return uom, nil
+// 	default:
+// 		panic(err)
+// 	}
+// }
 
 func checkErr(err error) {
 	if err != nil {
