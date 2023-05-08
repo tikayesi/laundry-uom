@@ -18,7 +18,7 @@ import (
 const (
 	dbHost 		= "localhost"
 	dbPort 		= "5432"
-	dbName 		= "enigma_laundry"
+	dbName 		= "laundry1"
 	dbUser 		= "postgres"
 	dbPassword 	= "postgres"
 	sslMode 	= "disable"
@@ -63,6 +63,7 @@ func main() {
 
 	// test CRUD
 
+	// --- OUM ---
 	// CREATE
 	newOum := Uom {Name: "Test Unit"}
 	insertUom(db, &newOum)
@@ -77,6 +78,22 @@ func main() {
 
 	// DELETE
 	deleteUom(db, "8ddefbbc-717f-423e-8d66-391a0ceedecb")
+
+	// --- Employee ---
+	// CREATE
+	newEmployee := Employee{Name: "John Doe"}
+	insertEmployee(db, &newEmployee)
+
+	// READ
+	fmt.Println(getEmployee(db, newEmployee.Id))
+	fmt.Println(getAllEmployees(db))
+
+	// UPDATE
+	updatedEmployee := Employee{Id: newEmployee.Id, Name: "Jane Doe"}
+	updateEmployee(db, &updatedEmployee)
+
+	// DELETE
+	deleteEmployee(db, newEmployee.Id)
 }
 
 //=================== Create, Read, Update, Delete (CRUD) ========================
@@ -165,6 +182,89 @@ func deleteUom(db *sql.DB, id string) error {
 	return err
 }
 
+// --------------------- Employee Master -------------------
+func insertEmployee(db *sql.DB, newEmployee *Employee) error {
+	newId := uuid.New().String()
+	stmt := `INSERT INTO public.employee (id,name) VALUES ($1,$2)`
+	_, err := db.Exec(stmt, newId, newEmployee.Name)
+
+	if err == nil {
+		log.Printf("Employee %s added successfully", newEmployee.Name)
+	} else {
+		log.Println(err)
+	}
+
+	return err
+}
+
+func getEmployee(db *sql.DB, id string) (*Employee, error) {
+	stmt := `SELECT name FROM public.employee WHERE id = $1`
+	row := db.QueryRow(stmt, id)
+
+	var employee Employee
+	err := row.Scan(&employee.Name)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("Employee with ID %s not found", id)
+	} else if err != nil {
+		return nil, err
+	}
+
+	employee.Id = id
+
+	return &employee, nil
+}
+
+func getAllEmployees(db *sql.DB) ([]Employee, error) {
+	stmt := `SELECT id, name FROM public.employee`
+	rows, err := db.Query(stmt)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	employees := []Employee{}
+	for rows.Next() {
+		var employee Employee
+		err := rows.Scan(&employee.Id, &employee.Name)
+		if err != nil {
+			return nil, err
+		}
+		employees = append(employees, employee)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return employees, nil
+}
+
+func updateEmployee(db *sql.DB, updatedEmployee *Employee) error {
+	stmt := `UPDATE public.employee SET name = $2 WHERE id = $1`
+	_, err := db.Exec(stmt, updatedEmployee.Id, updatedEmployee.Name)
+
+	if err == nil {
+		log.Printf("Employee with ID %s updated successfully", updatedEmployee.Id)
+	} else {
+		log.Println(err)
+	}
+
+	return err
+}
+
+func deleteEmployee(db *sql.DB, id string) error {
+	stmt := `UPDATE employee SET is_deleted = true where id=$1`
+	_, err := db.Exec(stmt, id)
+
+	if err == nil {
+		log.Printf("Employee with ID %s deleted successfully", id)
+	} else {
+		log.Println(err)
+	}
+
+	return err
+}
 
 func checkErr(err error) {
 	if err != nil {
