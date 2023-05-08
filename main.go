@@ -6,8 +6,36 @@
 
 package main
 
-import "fmt"
+import (
+	"database/sql"
+	"fmt"
+
+	_ "github.com/lib/pq"
+)
+
+const (
+	dbHost 		= "localhost"
+	dbPort 		= "5432"
+	dbName 		= "enigma_laundry"
+	dbUser 		= "postgres"
+	dbPassword 	= "postgres"
+	sslMode 	= "disable"
+)
 
 func main() {
-	fmt.Println("Hello, world!")
+	connectDb()
+}
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func connectDb() *sql.DB {
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", dbHost, dbPort, dbUser, dbPassword, dbName, sslMode)
+	db, err := sql.Open("postgres", psqlInfo)
+	checkErr(err)
+	fmt.Println("connected to db")
+	return db
 }
