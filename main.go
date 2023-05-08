@@ -61,50 +61,41 @@ type BillItemRequest struct {
 func main() {
 	db := connectDb()
 
-	// test CRUD
-
-	// --- OUM ---
-	// CREATE
+	// #region Test CRUD UOM
 	newOum := Uom {Name: "Test Unit"}
 	insertUom(db, &newOum)
 
-	// READ
 	fmt.Println(getUom(db, "8ddefbbc-717f-423e-8d66-391a0ceedecb"))
 	fmt.Println(getAllUom(db))
 	
-	// UPDATE
 	updatedUom := Uom{Id: "8ddefbbc-717f-423e-8d66-391a0ceedecb", Name: "Test Unit2"}
 	updateUom(db, &updatedUom)
 
-	// DELETE
 	deleteUom(db, "8ddefbbc-717f-423e-8d66-391a0ceedecb")
+	// #endregion
 
-	// --- Employee ---
-	// CREATE
+	// #region Test CRUD Employee
 	newEmployee := Employee{Name: "John Doe"}
 	insertEmployee(db, &newEmployee)
 
-	// READ
 	retrievedEmployee, err := getEmployee(db, newEmployee.Id)
 	if err != nil {
-        log.Fatal(err)
-    }
-	fmt.Println(retrievedEmployee)
+        log.Println(err)
+    } else {
+		fmt.Println(retrievedEmployee)
+	}
 	fmt.Println(getAllEmployees(db))
 
-	// UPDATE
 	updatedEmployee := Employee{Id: newEmployee.Id, Name: "Jane Doe"}
 	updateEmployee(db, &updatedEmployee)
 
-	// DELETE
 	deleteEmployee(db, newEmployee.Id)
+	// #endregion
 
-	// --- Customer ---
-	// CREATE
+	// #region Test CRUD Customer
     newCustomer := Customer{Name: "John Doe", PhoneNumber: "+1 123-456-7890"}
     insertCustomer(db, &newCustomer)
 
-    // READ
     retrievedCustomer, err := getCustomer(db, newCustomer.Id)
     if err != nil {
         log.Fatal(err)
@@ -112,17 +103,48 @@ func main() {
     fmt.Println(retrievedCustomer)
 	fmt.Println(getAllCustomers(db))
 
-    // UPDATE
     retrievedCustomer.Name = "Jane Doe"
     updateCustomer(db, retrievedCustomer)
 
-    // DELETE
     deleteCustomer(db, retrievedCustomer.Id)
+	// #endregion
+
+	// #region Test CRUD Product
+	newUom := Uom{Name: "Test Unit"}
+	insertUom(db, &newUom)
+	
+	newProduct := Product{Name: "Test Product", Price: 1000, Uom: newUom}
+	insertProduct(db, &newProduct)
+	
+	product, err := getProduct(db, newProduct.Id)
+	if err != nil {
+		log.Println(err)
+	} else {
+		fmt.Printf("Product: %+v\n", *product)
+	}
+
+	allProducts, err := getAllProducts(db)
+	if err != nil {
+		log.Println(err)
+	} else {
+		fmt.Printf("All Products: %+v\n", allProducts)
+	}
+
+	updatedProduct := Product{Id: newProduct.Id, Name: "Test Product 2", Price: 2000, Uom: newUom}
+	updateProduct(db, &updatedProduct)
+
+	err = deleteProduct(db, newProduct.Id)
+	if err != nil {
+		log.Println(err)
+	} else {
+		fmt.Println("Product deleted successfully")
+		// #endregion
+	}
 }
 
-//=================== Create, Read, Update, Delete (CRUD) ========================
+// #region CRUD Master
 
-// ----------------- UOM Master -------------------------
+// #region UOM
 func insertUom(db *sql.DB, newUom *Uom) error {
 	newId := uuid.New().String()
 	stmt := `INSERT INTO public.uom (id,name) VALUES ($1,$2)`
@@ -206,7 +228,9 @@ func deleteUom(db *sql.DB, id string) error {
 	return err
 }
 
-// --------------------- Employee Master -------------------
+// #endregion
+
+// #region Employee
 func insertEmployee(db *sql.DB, newEmployee *Employee) error {
 	newId := uuid.New().String()
 	stmt := `INSERT INTO public.employee (id,name) VALUES ($1,$2)`
@@ -289,8 +313,9 @@ func deleteEmployee(db *sql.DB, id string) error {
 
 	return err
 }
+// #endregion
 
-// ----------------- Customer -------------------------
+// #region Customer
 func insertCustomer(db *sql.DB, newCustomer *Customer) error {
 	newId := uuid.New().String()
 	stmt := `INSERT INTO public.customer (id,name,phone_number) VALUES ($1,$2,$3)`
@@ -373,6 +398,97 @@ func deleteCustomer(db *sql.DB, id string) error {
 
 	return err
 }
+// #endregion
+
+// #region Product
+func insertProduct(db *sql.DB, newProduct *Product) error {
+	newId := uuid.New().String()
+	stmt := `INSERT INTO public.products (id,name,price,uom_id) VALUES ($1,$2,$3,$4)`
+	_, err := db.Exec(stmt, newId, newProduct.Name, newProduct.Price, newProduct.Uom.Id)
+
+	if err == nil {
+		log.Printf("Product %s added successfully", newProduct.Name)
+	} else {
+		log.Println(err)
+	}
+
+	return err
+}
+
+func getProduct(db *sql.DB, id string) (*Product, error) {
+	stmt := `SELECT p.name, p.price, u.id, u.name FROM public.products p INNER JOIN public.uom u ON p.uom_id = u.id WHERE p.id = $1`
+	row := db.QueryRow(stmt, id)
+
+	var product Product
+	var uom Uom
+	err := row.Scan(&product.Name, &product.Price, &uom.Id, &uom.Name)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("Product with ID %s not found", id)
+	} else if err != nil {
+		return nil, err
+	}
+
+	product.Id = id
+	product.Uom = uom
+
+	return &product, nil
+}
+
+func getAllProducts(db *sql.DB) ([]Product, error) {
+	stmt := `SELECT p.id, p.name, p.price, u.id, u.name FROM public.products p INNER JOIN public.uom u ON p.uom_id = u.id`
+	rows, err := db.Query(stmt)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	products := []Product{}
+	for rows.Next() {
+		var product Product
+		var uom Uom
+		err := rows.Scan(&product.Id, &product.Name, &product.Price, &uom.Id, &uom.Name)
+		if err != nil {
+			return nil, err
+		}
+		product.Uom = uom
+		products = append(products, product)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return products, nil
+}
+
+func updateProduct(db *sql.DB, updatedProduct *Product) error {
+	stmt := `UPDATE public.products SET name = $2, price = $3, uom_id = $4 WHERE id = $1`
+	_, err := db.Exec(stmt, updatedProduct.Id, updatedProduct.Name, updatedProduct.Price, updatedProduct.Uom.Id)
+
+	if err == nil {
+		log.Printf("Product with ID %s updated successfully", updatedProduct.Id)
+	} else {
+		log.Println(err)
+	}
+
+	return err
+}
+
+func deleteProduct(db *sql.DB, id string) error {
+	stmt := `UPDATE products SET is_deleted = true where id=$1`
+	_, err := db.Exec(stmt, id)
+
+	if err == nil {
+		log.Printf("Product with ID %s deleted successfully", id)
+	} else {
+		log.Println(err)
+	}
+
+	return err
+}
+// #endregion
+// #endregion
 
 func checkErr(err error) {
 	if err != nil {
