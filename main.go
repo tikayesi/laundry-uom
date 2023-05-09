@@ -98,9 +98,9 @@ func runConsole() {
 }
 
 func mainMenuForm() {
-	fmt.Println(strings.Repeat("*", 30))
+	fmt.Println(strings.Repeat("=", 30))
 	fmt.Println("Enigma Laundry")
-	fmt.Println(strings.Repeat("*", 30))
+	fmt.Println(strings.Repeat("=", 30))
 	fmt.Println("1. Master UOM")
 	fmt.Println("2. Master Produk")
 	fmt.Println("3. Master Staf")
