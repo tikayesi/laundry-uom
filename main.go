@@ -10,6 +10,9 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -18,7 +21,7 @@ import (
 const (
 	dbHost 		= "localhost"
 	dbPort 		= "5432"
-	dbName 		= "laundry1"
+	dbName 		= "laundry2"
 	dbUser 		= "postgres"
 	dbPassword 	= "postgres"
 	sslMode 	= "disable"
@@ -59,90 +62,122 @@ type BillItemRequest struct {
 }
 
 func main() {
-	db := connectDb()
+	runConsole()
+}
 
-	// #region Test CRUD UOM
-	newOum := Uom {Name: "Test Unit"}
-	insertUom(db, &newOum)
-
-	fmt.Println(getUom(db, "8ddefbbc-717f-423e-8d66-391a0ceedecb"))
-	fmt.Println(getAllUom(db))
-	
-	updatedUom := Uom{Id: "8ddefbbc-717f-423e-8d66-391a0ceedecb", Name: "Test Unit2"}
-	updateUom(db, &updatedUom)
-
-	deleteUom(db, "8ddefbbc-717f-423e-8d66-391a0ceedecb")
-	// #endregion
-
-	// #region Test CRUD Employee
-	newEmployee := Employee{Name: "John Doe"}
-	insertEmployee(db, &newEmployee)
-
-	retrievedEmployee, err := getEmployee(db, newEmployee.Id)
-	if err != nil {
-        log.Println(err)
-    } else {
-		fmt.Println(retrievedEmployee)
-	}
-	fmt.Println(getAllEmployees(db))
-
-	updatedEmployee := Employee{Id: newEmployee.Id, Name: "Jane Doe"}
-	updateEmployee(db, &updatedEmployee)
-
-	deleteEmployee(db, newEmployee.Id)
-	// #endregion
-
-	// #region Test CRUD Customer
-    newCustomer := Customer{Name: "John Doe", PhoneNumber: "+1 123-456-7890"}
-    insertCustomer(db, &newCustomer)
-
-    retrievedCustomer, err := getCustomer(db, newCustomer.Id)
-    if err != nil {
-        log.Fatal(err)
+// #region console menu
+func runConsole() {
+    db := connectDb()
+    defer db.Close()
+    mainMenuForm()
+    for {
+        var selectedMenu string
+        fmt.Scanln(&selectedMenu)
+        switch selectedMenu {
+        case "1":
+            uom := uomCreateForm()
+            err := insertUom(db, &uom)
+            checkErr(err)
+            mainMenuForm()
+        case "2":
+            //delivery.ListProductForm(repo)
+        case "3":
+            //delivery.SearchProductForm(repo)
+        case "4":
+            //delivery.SearchProductForm(repo)
+        case "5":
+            billRequest := billCreateForm()
+            fmt.Println(billRequest)
+            err := createBill(db, &billRequest)
+            checkErr(err)
+            mainMenuForm()
+        case "0":
+            os.Exit(0)
+        }
     }
-    fmt.Println(retrievedCustomer)
-	fmt.Println(getAllCustomers(db))
+}
 
-    retrievedCustomer.Name = "Jane Doe"
-    updateCustomer(db, retrievedCustomer)
 
-    deleteCustomer(db, retrievedCustomer.Id)
-	// #endregion
+func mainMenuForm() {
+	fmt.Println(strings.Repeat("*", 30))
+	fmt.Println("Enigma Laundry")
+	fmt.Println(strings.Repeat("*", 30))
+	fmt.Println("1. Master UOM")
+	fmt.Println("2. Master Produk")
+	fmt.Println("3. Master Staf")
+	fmt.Println("4. Master Pelanggan")
+	fmt.Println("5. Transaksi Baru")
+	fmt.Println("0. Keluar")
+	fmt.Println("Pilih Menu (0-5): ")
+}
 
-	// #region Test CRUD Product
-	newUom := Uom{Name: "Test Unit"}
-	insertUom(db, &newUom)
-	
-	newProduct := Product{Name: "Test Product", Price: 1000, Uom: newUom}
-	insertProduct(db, &newProduct)
-	
-	product, err := getProduct(db, newProduct.Id)
-	if err != nil {
-		log.Println(err)
-	} else {
-		fmt.Printf("Product: %+v\n", *product)
+func uomCreateForm() Uom {
+	var uomName string
+	var saveUOMConfirmation string
+	fmt.Print("UOM Name: ")
+	fmt.Scanln(&uomName)
+	fmt.Printf("UOM %s akan disimpan (y/t) ?", uomName)
+	fmt.Scanln(&saveUOMConfirmation)
+
+	if saveUOMConfirmation == "y" {
+		var uom Uom
+		uom.Name = uomName
+		return uom
 	}
 
-	allProducts, err := getAllProducts(db)
-	if err != nil {
-		log.Println(err)
-	} else {
-		fmt.Printf("All Products: %+v\n", allProducts)
-	}
+	return Uom{}
+}
 
-	updatedProduct := Product{Id: newProduct.Id, Name: "Test Product 2", Price: 2000, Uom: newUom}
-	updateProduct(db, &updatedProduct)
-
-	err = deleteProduct(db, newProduct.Id)
-	if err != nil {
-		log.Println(err)
-	} else {
-		fmt.Println("Product deleted successfully")
-		// #endregion
+func billDetailForm(billDetail *[]BillItemRequest) {
+	for {
+		var productId string
+		var qty int
+		var saveBillDetConfirmation string
+		fmt.Println("Produk Id:")
+		fmt.Scanln(&productId)
+		fmt.Println("Jumlah:")
+		fmt.Scanln(&qty)
+		fmt.Print("simpan produk (y/t) ?")
+		fmt.Scanln(&saveBillDetConfirmation)
+		if saveBillDetConfirmation == "y" {
+			*billDetail = append(*billDetail, BillItemRequest{
+				ProductId: productId,
+				Qty:       qty,
+			})
+		}
+		var finishBillDetConfirmation string
+		fmt.Print("selesai (y/t) ?")
+		fmt.Scanln(&finishBillDetConfirmation)
+		if finishBillDetConfirmation == "y" {
+			fmt.Println(billDetail)
+			break
+		}
 	}
 }
 
-// #region CRUD Master
+func billCreateForm() BillRequest {
+	var employeeId string
+	var customerId string
+	var billDetail []BillItemRequest
+	var saveBillConfirmation string
+	fmt.Print("Id Staff: ")
+	fmt.Scanln(&employeeId)
+	fmt.Print("Id Pelanggan: ")
+	fmt.Scanln(&customerId)
+	billDetailForm(&billDetail)
+	fmt.Print("Buat Struk (y/t) ?")
+	fmt.Scanln(&saveBillConfirmation)
+
+	if saveBillConfirmation == "y" {
+		var billReq BillRequest
+		billReq.EmployeeId = employeeId
+		billReq.CustomerId = customerId
+		billReq.Items = billDetail
+		return billReq
+	}
+	return BillRequest{}
+}
+// #endregion
 
 // #region UOM
 func insertUom(db *sql.DB, newUom *Uom) error {
@@ -488,6 +523,36 @@ func deleteProduct(db *sql.DB, id string) error {
 	return err
 }
 // #endregion
+
+// #region transaction
+func createBill(db *sql.DB, newBill *BillRequest) error {
+	tx, err := db.Begin()
+	checkErr(err)
+	billStmt := `INSERT into bill (id,bill_date,finish_date, employee_id,customer_id) VALUES($1,$2,$3,$4,$5)`
+	billId := uuid.New().String()
+	billDate := time.Now()
+	finishDate := billDate.AddDate(0, 0, 7)
+
+	_, err = tx.Exec(billStmt, billId, billDate, finishDate, newBill.EmployeeId, newBill.CustomerId)
+	validateTransaction(err, tx)
+
+	billDetailStmt := `INSERT into bill_detail (id,bill_id,product_id, product_price,qty) VALUES($1,$2,$3,$4,$5)`
+	for _, prodReq := range newBill.Items {
+		billDetailId := uuid.New().String()
+		product, _ := getProduct(db, prodReq.ProductId)
+		_, err = tx.Exec(billDetailStmt, billDetailId, billId, prodReq.ProductId, product.Price, prodReq.Qty)
+		validateTransaction(err, tx)
+	}
+	tx.Commit()
+	return err
+}
+
+func validateTransaction(err error, tx *sql.Tx) {
+	if err != nil {
+		fmt.Println(err)
+		tx.Rollback()
+	}
+}
 // #endregion
 
 func checkErr(err error) {
