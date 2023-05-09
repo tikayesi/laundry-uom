@@ -97,7 +97,6 @@ func runConsole() {
     }
 }
 
-
 func mainMenuForm() {
 	fmt.Println(strings.Repeat("*", 30))
 	fmt.Println("Enigma Laundry")
